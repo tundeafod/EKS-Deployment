@@ -115,6 +115,60 @@ resource "aws_route_table_association" "private-subnet-2-route-table-association
   route_table_id = aws_route_table.private-RT.id
 }
 
+# Creating RSA key of size 4096 bits
+resource "tls_private_key" "keypair" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+resource "local_file" "keypair" {
+  content         = tls_private_key.keypair.private_key_pem
+  filename        = "jenkins-keypair.pem"
+  file_permission = "600"
+}
+# Creating keypair
+resource "aws_key_pair" "keypair" {
+  key_name   = "jenkins-keypair"
+  public_key = tls_private_key.keypair.public_key_openssh
+}
+#Create Jenkins Server
+resource "aws_instance" "jenkins_server" {
+  ami                         = "ami-035cecbff25e0d91e"
+  instance_type               = "t2.medium"
+  vpc_security_group_ids      = [aws_security_group.jenkins-sg.id]
+  associate_public_ip_address = true
+  iam_instance_profile        = aws_iam_instance_profile.ec2_profile.id
+  subnet_id                   = aws_subnet.pubsub01.id
+  # subnet-elb                  = aws_subnet.pubsub02.id, aws_subnet.pubsub01.id
+  # cert-arn   = module.acm.acm_certificate
+  key_name                    = aws_key_pair.keypair.id
+  user_data                   = local.jenkins_user_data
+
+  tags = {
+    Name = "${local.name}-jenkins"
+  }
+}
+
+resource "aws_instance" "bastion_server" {
+  ami                         = "ami-035cecbff25e0d91e"
+  instance_type               = "t2.medium"
+  key_name                    = aws_key_pair.keypair.id
+  vpc_security_group_ids      = [aws_security_group.bastion-sg.id]
+  subnet_id                   = aws_subnet.pubsub01.id
+  associate_public_ip_address = true
+  user_data                   = <<-EOF
+  #!/bin/bash
+  echo "${var.private_keypair}" >> /home/ec2-user/.ssh/id_rsa
+  chown ec2-user /home/ec2-user/.ssh/id_rsa
+  # chgrp ec2-user /home/ec2-user/.ssh/id_rsa
+  chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
+  chmod 600 /home/ec2-user/.ssh/id_rsa
+  sudo hostnamectl set-hostname Bastion
+  EOF  
+  tags = {
+    Name = "${local.name}-bastion"
+  }
+}
+
 # Creating Jenkins security group
 resource "aws_security_group" "jenkins-sg" {
   name        = "jenkins"
@@ -144,34 +198,26 @@ resource "aws_security_group" "jenkins-sg" {
     Name = "${local.name}-jenkins-sg"
   }
 }
-# Creating RSA key of size 4096 bits
-resource "tls_private_key" "keypair" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-resource "local_file" "keypair" {
-  content         = tls_private_key.keypair.private_key_pem
-  filename        = "jenkins-keypair.pem"
-  file_permission = "600"
-}
-# Creating keypair
-resource "aws_key_pair" "keypair" {
-  key_name   = "jenkins-keypair"
-  public_key = tls_private_key.keypair.public_key_openssh
-}
-#Create Jenkins Server
-resource "aws_instance" "jenkins_server" {
-  ami                         = "ami-0f2cb8c8044faf2da" # RedHat eu west1 
-  instance_type               = "t2.medium"
-  vpc_security_group_ids      = [aws_security_group.jenkins-sg.id]
-  associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.ec2_profile.id
-  subnet_id                   = aws_subnet.pubsub01.id
-  key_name                    = aws_key_pair.keypair.id
-  user_data                   = local.jenkins_user_data
-
+# Creating Bastion security group
+resource "aws_security_group" "bastion-sg" {
+  name        = "bastion security group"
+  description = "bastion security Group"
+  vpc_id      = aws_vpc.vpc.id
+  ingress {
+    description = "ssh access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = -1
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   tags = {
-    Name = "${local.name}-jenkins"
+    Name = "${local.name}-bastion-sg"
   }
 }
 
@@ -189,4 +235,86 @@ resource "aws_iam_role" "ec2_role" {
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "ec2_profile2"
   role = aws_iam_role.ec2_role.name
+}
+
+resource "aws_elb" "jenkins_lb" {
+  name            = "jenkins-lb"
+  subnets         = [aws_subnet.pubsub02.id, aws_subnet.pubsub01.id] 
+  security_groups = [aws_security_group.jenkins-sg.id]
+  listener {
+    instance_port      = 8080
+    instance_protocol  = "http"
+    lb_port            = 443
+    lb_protocol        = "https"
+    ssl_certificate_id = aws_acm_certificate.acm_certificate.id
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "TCP:8080"
+    interval            = 30
+  }
+
+  instances                   = [aws_instance.jenkins_server.id]
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+  tags = {
+    Name = "${local.name}-jenkins-elb"
+  }
+}
+
+# Route 53 hosted zone
+data "aws_route53_zone" "route53_zone" {
+  name         = var.domain-name
+  private_zone = false
+}
+
+# Create A Route 53 record
+resource "aws_route53_record" "jenkins_record" {
+  zone_id = data.aws_route53_zone.route53_zone.zone_id
+  name    = var.jenkins_domain_name
+  type    = "A"
+  alias {
+    name                   = aws_elb.jenkins_lb.dns_name
+    zone_id                = aws_elb.jenkins_lb.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# request public certificates from the amazon certificate manager.
+resource "aws_acm_certificate" "acm_certificate" {
+  domain_name               = var.domain-name
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# create a record set in route 53 for domain validatation
+resource "aws_route53_record" "route53_record" {
+  for_each = {
+    for dvo in aws_acm_certificate.acm_certificate.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.route53_zone.zone_id
+}
+
+# validate acm certificates
+resource "aws_acm_certificate_validation" "acm_certificate_validation" {
+  certificate_arn         = aws_acm_certificate.acm_certificate.arn
+  validation_record_fqdns = [for record in aws_route53_record.route53_record : record.fqdn]
 }
