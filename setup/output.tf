@@ -20,18 +20,6 @@ output "bastion-server-ip" {
   value = aws_instance.bastion_server.public_ip
 }
 
-output "jenkins_dns_name" {
-  value = aws_elb.jenkins_lb.dns_name
-}
 
-output "jenkins_zone_id" {
-  value = aws_elb.jenkins_lb.zone_id
-}
 
-output "jenkins_record" {
-  value = aws_route53_record.jenkins_record.id
-}
 
-output "acm_certificate" {
-  value = aws_acm_certificate.acm_certificate.arn
-}
