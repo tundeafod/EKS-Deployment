@@ -30,7 +30,7 @@ resource "aws_subnet" "pubsub02" {
 # create prv subnet 1
 resource "aws_subnet" "prvtsub01" {
   vpc_id            = aws_vpc.vpc.id
-  cidr_block        = "10.0.4.0/24"
+  cidr_block        = "10.0.3.0/24"
   availability_zone = "eu-west-2a"
   tags = {
     Name = "${local.name}-prvtsub01"
@@ -39,7 +39,7 @@ resource "aws_subnet" "prvtsub01" {
 # create prv subnet 2
 resource "aws_subnet" "prvtsub02" {
   vpc_id            = aws_vpc.vpc.id
-  cidr_block        = "10.0.5.0/24"
+  cidr_block        = "10.0.4.0/24"
   availability_zone = "eu-west-2b"
   tags = {
     Name = "${local.name}-prvtsub02"
@@ -132,21 +132,21 @@ resource "aws_key_pair" "keypair" {
 }
 #Create Jenkins Server
 resource "aws_instance" "jenkins_server" {
-  ami                         = "ami-035cecbff25e0d91e"
+  ami                         = "ami-053a617c6207ecc7b"  #ubuntu
   instance_type               = "t2.medium"
   vpc_security_group_ids      = [aws_security_group.jenkins-sg.id]
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ec2_profile.id
   subnet_id                   = aws_subnet.pubsub01.id
   key_name                    = aws_key_pair.keypair.id
-  user_data                   = local.jenkins-script
+  user_data                   = file("jenkins-install.sh")
   tags = {
     Name = "${local.name}-jenkins"
   }
 }
 
 resource "aws_instance" "bastion_server" {
-  ami                         = "ami-035cecbff25e0d91e"
+  ami                         = "ami-035cecbff25e0d91e"  #ec2-user
   instance_type               = "t2.medium"
   key_name                    = aws_key_pair.keypair.id
   vpc_security_group_ids      = [aws_security_group.bastion-sg.id]
