@@ -132,7 +132,7 @@ resource "aws_key_pair" "keypair" {
 }
 #Create Jenkins Server
 resource "aws_instance" "jenkins_server" {
-  ami                         = "ami-053a617c6207ecc7b"  #ubuntu
+  ami                         = "ami-053a617c6207ecc7b" #ubuntu
   instance_type               = "t2.medium"
   vpc_security_group_ids      = [aws_security_group.jenkins-sg.id]
   associate_public_ip_address = true
@@ -146,7 +146,7 @@ resource "aws_instance" "jenkins_server" {
 }
 
 resource "aws_instance" "bastion_server" {
-  ami                         = "ami-035cecbff25e0d91e"  #ec2-user
+  ami                         = "ami-035cecbff25e0d91e" #ec2-user
   instance_type               = "t2.medium"
   key_name                    = aws_key_pair.keypair.id
   vpc_security_group_ids      = [aws_security_group.bastion-sg.id]
@@ -154,9 +154,7 @@ resource "aws_instance" "bastion_server" {
   associate_public_ip_address = true
   user_data                   = <<-EOF
   #!/bin/bash
-  echo "${var.private_keypair}" >> /home/ec2-user/.ssh/id_rsa
-  chown ec2-user /home/ec2-user/.ssh/id_rsa
-  # chgrp ec2-user /home/ec2-user/.ssh/id_rsa
+  echo "${var.private_keypair}" > /home/ec2-user/.ssh/id_rsa
   chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
   chmod 600 /home/ec2-user/.ssh/id_rsa
   sudo hostnamectl set-hostname Bastion
@@ -182,6 +180,13 @@ resource "aws_security_group" "jenkins-sg" {
     description = "Allow proxy access"
     from_port   = 8080
     to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    description = "https"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -236,7 +241,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 resource "aws_elb" "jenkins_lb" {
   name            = "jenkins-lb"
-  subnets         = [aws_subnet.pubsub02.id, aws_subnet.pubsub01.id] 
+  subnets         = [aws_subnet.pubsub02.id, aws_subnet.pubsub01.id]
   security_groups = [aws_security_group.jenkins-sg.id]
   listener {
     instance_port      = 8080
@@ -284,8 +289,8 @@ resource "aws_route53_record" "jenkins_record" {
 
 # request public certificates from the amazon certificate manager.
 resource "aws_acm_certificate" "acm_certificate" {
-  domain_name               = var.domain-name
-  validation_method         = "DNS"
+  domain_name       = var.domain-name
+  validation_method = "DNS"
 
   lifecycle {
     create_before_destroy = true
