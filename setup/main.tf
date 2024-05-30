@@ -21,7 +21,7 @@ resource "aws_subnet" "pubsub01" {
 resource "aws_subnet" "pubsub02" {
   vpc_id            = aws_vpc.vpc.id
   cidr_block        = "10.0.2.0/24"
-  availability_zone = "eu-west-1b"
+  availability_zone = "eu-west-2b"
   tags = {
     Name = "${local.name}-pubsub02"
   }
@@ -31,7 +31,7 @@ resource "aws_subnet" "pubsub02" {
 resource "aws_subnet" "prvtsub01" {
   vpc_id            = aws_vpc.vpc.id
   cidr_block        = "10.0.4.0/24"
-  availability_zone = "eu-west-1a"
+  availability_zone = "eu-west-2a"
   tags = {
     Name = "${local.name}-prvtsub01"
   }
@@ -40,7 +40,7 @@ resource "aws_subnet" "prvtsub01" {
 resource "aws_subnet" "prvtsub02" {
   vpc_id            = aws_vpc.vpc.id
   cidr_block        = "10.0.5.0/24"
-  availability_zone = "eu-west-1b"
+  availability_zone = "eu-west-2b"
   tags = {
     Name = "${local.name}-prvtsub02"
   }
@@ -138,11 +138,8 @@ resource "aws_instance" "jenkins_server" {
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ec2_profile.id
   subnet_id                   = aws_subnet.pubsub01.id
-  # subnet-elb                  = aws_subnet.pubsub02.id, aws_subnet.pubsub01.id
-  # cert-arn   = module.acm.acm_certificate
   key_name                    = aws_key_pair.keypair.id
-  user_data                   = local.jenkins_user_data
-
+  user_data                   = local.jenkins-script
   tags = {
     Name = "${local.name}-jenkins"
   }
