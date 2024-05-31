@@ -10,12 +10,11 @@ pipeline {
         stage('Checkout SCM'){
             steps{
                 script{
-                    //Generate  using pipeline syntax
+                    checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/tundeafod/EKS-Deployment.git']])
                 }
             }
         }
-    }
-         stage('Initializing Terraform'){
+        stage('Initializing Terraform'){
             steps{
                 script{
                     dir('EKS'){
@@ -61,3 +60,4 @@ pipeline {
                 }
             }
         }
+}
