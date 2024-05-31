@@ -57,7 +57,6 @@ resource "aws_internet_gateway" "igw" {
 # Allocate Elastic IP Address
 resource "aws_eip" "eip" {
   domain = "vpc"
-
   tags = {
     Name = "${local.name}-EIP"
   }
