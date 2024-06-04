@@ -1,12 +1,12 @@
 provider "aws" {
   region  = "eu-west-2"
-  profile = "lead"
+  profile = "team1"
 }
 
 terraform {
   backend "s3" {
     bucket         = "mytodoeksbucket"
-    key            = "remote/tfstate"
+    key            = "provision/terraform.tfstate"
     dynamodb_table = "eks-backend"
     region         = "eu-west-2"
     encrypt        = true
