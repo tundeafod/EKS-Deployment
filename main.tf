@@ -23,14 +23,14 @@ resource "aws_instance" "cluster-access" {
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.cluster-access-profile.id
   key_name                    = aws_key_pair.public-key.id
-  user_data                   = local.user_data
+  user_data                   = file("cluster-install.sh")
 
   tags = {
     Name = "cluster-access"
   }
 }
 
-# Create null resource to copy playbooks directory into ansible server
+# Create null resource to copy
 resource "null_resource" "copy-eks-file" {
   connection {
     type        = "ssh"
@@ -59,7 +59,6 @@ resource "aws_iam_group" "eks_group" {
   name = "eks_group"
 }
 
-# Add ansible user to terraform group
 resource "aws_iam_user_group_membership" "eks_group_membership" {
   user   = aws_iam_user.eks_user.name
   groups = [aws_iam_group.eks_group.name]
@@ -89,7 +88,6 @@ resource "aws_iam_instance_profile" "cluster-access-profile" {
   role = aws_iam_role.cluster-access-role.name
 }
 
-# Create security group Load balancer
 resource "aws_security_group" "cluster-access-sg" {
   tags = {
     Name = "cluster-access-sg"
