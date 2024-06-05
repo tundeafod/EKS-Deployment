@@ -70,11 +70,71 @@ resource "aws_iam_group_policy_attachment" "eks_policy" {
   group      = aws_iam_group.eks_group.name
 }
 
-#  Create IAM Policy
+#  Create IAM Policy attachment 
 resource "aws_iam_role_policy_attachment" "cluster-access-policy-attachment" {
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
   role       = aws_iam_role.cluster-access-role.name
 }
+
+# # Create Custom IAM Policy for EKS Cluster Access
+# resource "aws_iam_policy" "eks_cluster_access_policy" {
+#   name        = "eks-cluster-access-policy"
+#   description = "Policy to allow access to EKS clusters"
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "eks:DescribeCluster",
+#           "eks:ListClusters",
+#           "eks:ListNodegroups",
+#           "eks:DescribeNodegroup"
+#         ]
+#         Resource = "*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "ec2:DescribeInstances",
+#           "ec2:DescribeRegions",
+#           "ec2:DescribeAvailabilityZones"
+#         ]
+#         Resource = "*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "ssm:GetParameter",
+#           "ssm:GetParameters"
+#         ]
+#         Resource = "arn:aws:ssm:*:*:parameter/*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "ecr:GetDownloadUrlForLayer",
+#           "ecr:BatchGetImage",
+#           "ecr:GetAuthorizationToken"
+#         ]
+#         Resource = "*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "sts:AssumeRole"
+#         ]
+#         Resource = "*"
+#       }
+#     ]
+#   })
+# }
+
+# # Attach Custom Policy to IAM Role
+# resource "aws_iam_role_policy_attachment" "cluster-access-policy-attachment" {
+#   policy_arn = aws_iam_policy.eks_cluster_access_policy.arn
+#   role       = aws_iam_role.cluster-access-role.name
+# }
 
 # Create IAM Role
 resource "aws_iam_role" "cluster-access-role" {
