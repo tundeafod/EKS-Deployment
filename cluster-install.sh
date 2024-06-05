@@ -30,6 +30,8 @@ https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
 sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update
 sudo apt-get install terraform -y
+touch ~/.bashrc
+terraform -install-autocomplete
 
 # Installing Kubectl
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -39,7 +41,7 @@ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 # Execute terraform script to create EKS Cluster
 cd /home/ubuntu/eks-code
-terraform init && time terraform apply -auto-approve
+sudo su -c "terraform init && time terraform apply -auto-approve" ubuntu
 
 # # Update the kubeconfig file allowing users to interact with the EKS Cluster
 cd /home/ubuntu/eks-code
