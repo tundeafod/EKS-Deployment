@@ -22,8 +22,11 @@ variable "instance_types" {
   default     = ["t2.medium"]
 }
 
-
-
+variable "region" {
+  description = "region"
+  type        = string
+  default     = "eu-west-2"
+}
 
 
 
