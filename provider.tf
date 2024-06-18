@@ -1,6 +1,6 @@
 provider "aws" {
-  region = "eu-west-2"
-  # profile = "team1"
+  region  = "eu-west-2"
+  profile = "team1"
 }
 
 terraform {
@@ -10,6 +10,6 @@ terraform {
     dynamodb_table = "eks-backend"
     region         = "eu-west-2"
     encrypt        = true
-    # profile        = "team1"
+    profile        = "team1"
   }
 }

@@ -6,7 +6,7 @@
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name = "eks_cluster_vpc"
+  name = "eks_k8cluster_vpc"
   cidr = var.vpc_cidr
 
   azs             = data.aws_availability_zones.azs.names
@@ -36,13 +36,18 @@ module "vpc" {
 #EKS
 
 module "eks" {
-  source                         = "terraform-aws-modules/eks/aws"
-  cluster_name                   = "my-eks-cluster"
-  cluster_version                = "1.29"
-  cluster_endpoint_public_access = true
-
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  source                                   = "terraform-aws-modules/eks/aws"
+  cluster_name                             = "my-eks-k8cluster"
+  cluster_version                          = "1.29"
+  cluster_endpoint_public_access           = true
+  enable_cluster_creator_admin_permissions = true
+  vpc_id                                   = module.vpc.vpc_id
+  subnet_ids                               = module.vpc.private_subnets
+  cluster_addons = {
+    aws-ebs-csi-driver = {
+      service_account_role_arn = module.irsa-ebs-csi.iam_role_arn
+    }
+  }
   eks_managed_node_groups = {
     one = {
       name = "node-group-1"
@@ -62,4 +67,16 @@ module "eks" {
       desired_size = 2
     }
   }
+}
+data "aws_iam_policy" "ebs_csi_policy" {
+  arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+module "irsa-ebs-csi" {
+  source                        = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
+  version                       = "5.39.0"
+  create_role                   = true
+  role_name                     = "AmazonEKSTFEBSCSIRole-${module.eks.cluster_name}"
+  provider_url                  = module.eks.oidc_provider
+  role_policy_arns              = [data.aws_iam_policy.ebs_csi_policy.arn]
+  oidc_fully_qualified_subjects = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
 }

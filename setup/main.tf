@@ -132,36 +132,40 @@ resource "aws_key_pair" "keypair" {
 #Create Jenkins Server
 resource "aws_instance" "jenkins_server" {
   ami                         = "ami-053a617c6207ecc7b" #ubuntu
-  instance_type               = "t2.medium"
+  instance_type               = "t2.xlarge"
   vpc_security_group_ids      = [aws_security_group.jenkins-sg.id]
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ec2_profile.id
   subnet_id                   = aws_subnet.pubsub01.id
   key_name                    = aws_key_pair.keypair.id
   user_data                   = file("jenkins-install.sh")
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
   tags = {
     Name = "${local.name}-jenkins"
   }
 }
 
-resource "aws_instance" "bastion_server" {
-  ami                         = "ami-035cecbff25e0d91e" #ec2-user
-  instance_type               = "t2.medium"
-  key_name                    = aws_key_pair.keypair.id
-  vpc_security_group_ids      = [aws_security_group.bastion-sg.id]
-  subnet_id                   = aws_subnet.pubsub01.id
-  associate_public_ip_address = true
-  user_data                   = <<-EOF
-  #!/bin/bash
-  echo "${var.private_keypair}" > /home/ec2-user/.ssh/id_rsa
-  chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
-  chmod 600 /home/ec2-user/.ssh/id_rsa
-  sudo hostnamectl set-hostname Bastion
-  EOF  
-  tags = {
-    Name = "${local.name}-bastion"
-  }
-}
+# resource "aws_instance" "bastion_server" {
+#   ami                         = "ami-035cecbff25e0d91e" #ec2-user
+#   instance_type               = "t2.medium"
+#   key_name                    = aws_key_pair.keypair.id
+#   vpc_security_group_ids      = [aws_security_group.bastion-sg.id]
+#   subnet_id                   = aws_subnet.pubsub01.id
+#   associate_public_ip_address = true
+#   user_data                   = <<-EOF
+#   #!/bin/bash
+#   echo "${var.private_keypair}" > /home/ec2-user/.ssh/id_rsa
+#   chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
+#   chmod 600 /home/ec2-user/.ssh/id_rsa
+#   sudo hostnamectl set-hostname Bastion
+#   EOF  
+#   tags = {
+#     Name = "${local.name}-bastion"
+#   }
+# }
 
 # Creating Jenkins security group
 resource "aws_security_group" "jenkins-sg" {
@@ -189,6 +193,13 @@ resource "aws_security_group" "jenkins-sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  ingress {
+    description = "http"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   egress {
     from_port   = 0
     to_port     = 0
@@ -199,28 +210,28 @@ resource "aws_security_group" "jenkins-sg" {
     Name = "${local.name}-jenkins-sg"
   }
 }
-# Creating Bastion security group
-resource "aws_security_group" "bastion-sg" {
-  name        = "bastion security group"
-  description = "bastion security Group"
-  vpc_id      = aws_vpc.vpc.id
-  ingress {
-    description = "ssh access"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = -1
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name = "${local.name}-bastion-sg"
-  }
-}
+# # Creating Bastion security group
+# resource "aws_security_group" "bastion-sg" {
+#   name        = "bastion security group"
+#   description = "bastion security Group"
+#   vpc_id      = aws_vpc.vpc.id
+#   ingress {
+#     description = "ssh access"
+#     from_port   = 22
+#     to_port     = 22
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = -1
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#   tags = {
+#     Name = "${local.name}-bastion-sg"
+#    }
+# }
 
 #  Create IAM Policy
 resource "aws_iam_role_policy_attachment" "ec2_role_policy_attachment" {
