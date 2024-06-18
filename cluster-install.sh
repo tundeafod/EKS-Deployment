@@ -39,6 +39,7 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl 
 
+
 # Execute terraform script to create EKS Cluster
 cd /home/ubuntu/eks-code
 sudo su -c "terraform init && time terraform apply -auto-approve" ubuntu
@@ -46,5 +47,10 @@ sudo su -c "terraform init && time terraform apply -auto-approve" ubuntu
 # # Update the kubeconfig file allowing users to interact with the EKS Cluster
 cd /home/ubuntu/eks-code
 sudo su -c "aws eks --region $(terraform output -raw region) update-kubeconfig --name $(terraform output -raw cluster_name)" ubuntu
+
+chmod +x /home/ubuntu/config.sh
+
+sh /home/ubuntu/config.sh
+
 
 hostnamectl set-hostname cluster-access

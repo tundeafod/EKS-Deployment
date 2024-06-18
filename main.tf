@@ -21,7 +21,7 @@ resource "aws_instance" "cluster-access" {
   instance_type               = "t2.micro"
   vpc_security_group_ids      = [aws_security_group.cluster-access-sg.id]
   associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.cluster-access-profile.id
+  iam_instance_profile        = aws_iam_instance_profile.cluster-access-profile1.id
   key_name                    = aws_key_pair.public-key.id
   user_data                   = file("cluster-install.sh")
 
@@ -41,6 +41,10 @@ resource "null_resource" "copy-eks-file" {
   provisioner "file" {
     source      = "./eks-code"
     destination = "/home/ubuntu/eks-code"
+  }
+  provisioner "file" {
+    source      = "./config.sh"
+    destination = "/home/ubuntu/config.sh"
   }
 }
 
@@ -73,79 +77,19 @@ resource "aws_iam_group_policy_attachment" "eks_policy" {
 #  Create IAM Policy attachment 
 resource "aws_iam_role_policy_attachment" "cluster-access-policy-attachment" {
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
-  role       = aws_iam_role.cluster-access-role.name
+  role       = aws_iam_role.cluster-access-role1.name
 }
 
-# # Create Custom IAM Policy for EKS Cluster Access
-# resource "aws_iam_policy" "eks_cluster_access_policy" {
-#   name        = "eks-cluster-access-policy"
-#   description = "Policy to allow access to EKS clusters"
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "eks:DescribeCluster",
-#           "eks:ListClusters",
-#           "eks:ListNodegroups",
-#           "eks:DescribeNodegroup"
-#         ]
-#         Resource = "*"
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "ec2:DescribeInstances",
-#           "ec2:DescribeRegions",
-#           "ec2:DescribeAvailabilityZones"
-#         ]
-#         Resource = "*"
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "ssm:GetParameter",
-#           "ssm:GetParameters"
-#         ]
-#         Resource = "arn:aws:ssm:*:*:parameter/*"
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "ecr:GetDownloadUrlForLayer",
-#           "ecr:BatchGetImage",
-#           "ecr:GetAuthorizationToken"
-#         ]
-#         Resource = "*"
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "sts:AssumeRole"
-#         ]
-#         Resource = "*"
-#       }
-#     ]
-#   })
-# }
-
-# # Attach Custom Policy to IAM Role
-# resource "aws_iam_role_policy_attachment" "cluster-access-policy-attachment" {
-#   policy_arn = aws_iam_policy.eks_cluster_access_policy.arn
-#   role       = aws_iam_role.cluster-access-role.name
-# }
-
 # Create IAM Role
-resource "aws_iam_role" "cluster-access-role" {
+resource "aws_iam_role" "cluster-access-role1" {
   name               = "cluster-access-role"
   assume_role_policy = file("${path.root}/ec2-assume.json")
 }
 
 # Create IAM Instance Profile
-resource "aws_iam_instance_profile" "cluster-access-profile" {
-  name = "cluster-access-profile"
-  role = aws_iam_role.cluster-access-role.name
+resource "aws_iam_instance_profile" "cluster-access-profile1" {
+  name = "cluster-access-profile1"
+  role = aws_iam_role.cluster-access-role1.name
 }
 
 resource "aws_security_group" "cluster-access-sg" {
