@@ -31,6 +31,7 @@ resource "aws_instance" "cluster-access" {
 }
 
 # Create null resource to copy
+
 resource "null_resource" "copy-eks-file" {
   connection {
     type        = "ssh"
@@ -38,10 +39,12 @@ resource "null_resource" "copy-eks-file" {
     user        = "ubuntu"
     private_key = tls_private_key.keypair.private_key_pem
   }
+
   provisioner "file" {
     source      = "./eks-code"
     destination = "/home/ubuntu/eks-code"
   }
+
   provisioner "file" {
     source      = "./config.sh"
     destination = "/home/ubuntu/config.sh"
