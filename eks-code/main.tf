@@ -19,16 +19,16 @@ module "vpc" {
   single_nat_gateway   = true
 
   tags = {
-    "kubernetes.io/cluster/my-eks-cluster" = "shared"
+    "kubernetes.io/cluster/my-eks-k8cluster" = "shared"
   }
   public_subnet_tags = {
-    "kubernetes.io/cluster/my-eks-cluster" = "shared"
-    "kubernetes.io/role/elb"               = 1
+    "kubernetes.io/cluster/my-eks-k8cluster" = "shared"
+    "kubernetes.io/role/elb"                 = 1
 
   }
   private_subnet_tags = {
-    "kubernetes.io/cluster/my-eks-cluster" = "shared"
-    "kubernetes.io/role/private_elb"       = 1
+    "kubernetes.io/cluster/my-eks-k8cluster" = "shared"
+    "kubernetes.io/role/private_elb"         = 1
 
   }
 }
