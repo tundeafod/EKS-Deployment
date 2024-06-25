@@ -41,6 +41,10 @@ sudo chown ubuntu:ubuntu /home/ubuntu/cluster-binding.yaml
 sudo su -c "kubectl apply -f /home/ubuntu/cluster-binding.yaml" ubuntu
 
 # ArgoCD namespace and deployment manifest
+# sudo su -c "kubectl create namespace argocd" ubuntu
+# sudo su -c "kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.11.1-rc2/manifests/install.yaml" ubuntu
+
+Stable version for ArgoCD
 sudo su -c "kubectl create namespace argocd" ubuntu
 sudo su -c "kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml" ubuntu
 
@@ -49,13 +53,16 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
 
+
 # Monitoring
 sudo su -c "kubectl create namespace monitoring" ubuntu
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 helm install prometheus prometheus-community/kube-prometheus-stack --namespace monitoring
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
 helm install grafana grafana/grafana --namespace monitoring
+
 sleep 30
 
 # Token Creation for namespaces
@@ -63,34 +70,29 @@ sudo su -c "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath
 sudo su -c "kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode > /home/ubuntu/grafpassword" ubuntu
 sudo su -c "kubectl -n kubernetes-dashboard create token admin-user > /home/ubuntu/token" ubuntu
 
-# Creating boutique namespace and deploying the application
-sudo su -c "kubectl create namespace boutique" ubuntu
+# Creating application namespace and deploying the application
+sudo su -c "kubectl create namespace stage-boutique" ubuntu
 git clone $REPO_URL
 cd microservices-app/
-kubectl apply -f deployment-service.yml
+git checkout main
+sudo su -c "kubectl apply -f deployment-service.yml" ubuntu
 cd
 cd eks-code/
 
-# #creating stage namespace
-# sudo su -c "kubectl create namespace stage" ubuntu
-# git clone $REPO_URL
-# cd microservices-app/
-# sudo su -c "kubectl apply -f deployment-service.yml" ubuntu
-
-# #creating prod namespace
-# sudo su -c "kubectl create namespace prod" ubuntu
-# git clone $REPO_URL
-# cd microservices-app/
-# sudo su -c "kubectl apply -f deployment-service.yml" ubuntu
-# cd
-# cd eks-code/
+sudo su -c "kubectl create namespace prod-boutique" ubuntu
+git clone $REPO_URL
+cd microservices-app/
+git checkout production
+sudo su -c "kubectl apply -f deployment-service.yml" ubuntu
+cd
+cd eks-code/
 
 # Cert-manager namespace and installation
 sudo su -c "kubectl create namespace cert-manager" ubuntu
-sudo su -c "kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.6/cert-manager.crds.yaml" ubuntu
-helm repo add jetstack https://charts.jetstack.io
+sudo su -c "kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.0/cert-manager.crds.yaml" ubuntu
+#helm repo add jetstack https://charts.jetstack.io
 helm repo update
-helm install cert-manager jetstack/cert-manager --namespace cert-manager --version v1.14.6
+#helm install cert-manager jetstack/cert-manager --namespace cert-manager --version v1.15.0 --set installCRDs=true
 
 # Configure Issuers - Create a ClusterIssuer for Let's Encrypt
 cat <<EOT > /home/ubuntu/cluster-issuer.yaml
@@ -192,7 +194,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: boutique-ingress
-  namespace: boutique
+  namespace: stage-boutique
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
@@ -204,7 +206,7 @@ spec:
     - boutique.tundeafod.click
     secretName: afodsecret
   rules:
-  - host: boutique.tundeafod.click
+  - host: stage-boutique.tundeafod.click
     http:
       paths:
       - path: /
@@ -213,13 +215,13 @@ spec:
           service:
             name: frontend
             port:
-              number: 443
+              number: 80
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: prometheus-ingress
-  namespace: monitoring
+  name: boutique-ingress
+  namespace: prod-boutique
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
@@ -228,7 +230,35 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
+    - boutique.tundeafod.click
+    secretName: afodsecret
+  rules:
+  - host: prod-boutique.tundeafod.click
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-grafana-ingress
+  namespace: monitoring
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    cert-manager.io/cluster-issuer: letsencrypt-production
+spec:
+  tls:
+  - hosts:
     - prometheus.tundeafod.click
+    - grafana.tundeafod.click
     secretName: afodsecret
   rules:
   - host: prometheus.tundeafod.click
@@ -240,24 +270,7 @@ spec:
           service:
             name: prometheus-server
             port:
-              number: 443
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: grafana-ingress
-  namespace: monitoring
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    cert-manager.io/cluster-issuer: letsencrypt-production
-spec:
-  ingressClassName: nginx
-  tls:
-  - hosts:
-    - grafana.tundeafod.click
-    secretName: afodsecret
-  rules:
+              number: 80
   - host: grafana.tundeafod.click
     http:
       paths:
@@ -267,7 +280,7 @@ spec:
           service:
             name: grafana
             port:
-              number: 443
+              number: 80
 EOT
 sudo chown ubuntu:ubuntu /home/ubuntu/ingress.yaml
 sudo su -c "kubectl apply -f /home/ubuntu/ingress.yaml" ubuntu

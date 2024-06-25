@@ -48,9 +48,9 @@ sudo su -c "terraform init && time terraform apply -auto-approve" ubuntu
 cd /home/ubuntu/eks-code
 sudo su -c "aws eks --region $(terraform output -raw region) update-kubeconfig --name $(terraform output -raw cluster_name)" ubuntu
 
-chmod +x /home/ubuntu/config.sh
+# chmod +x /home/ubuntu/config.sh
 
-sh /home/ubuntu/config.sh
+# sh /home/ubuntu/config.sh
 
 
 hostnamectl set-hostname cluster-access
