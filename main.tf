@@ -21,7 +21,7 @@ resource "aws_instance" "cluster-access" {
   instance_type               = "t2.micro"
   vpc_security_group_ids      = [aws_security_group.cluster-access-sg.id]
   associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.cluster-access-profile1.id
+  iam_instance_profile        = aws_iam_instance_profile.cluster-access-profile2.id
   key_name                    = aws_key_pair.public-key.id
   user_data                   = file("cluster-install.sh")
 
@@ -45,10 +45,10 @@ resource "null_resource" "copy-eks-file" {
     destination = "/home/ubuntu/eks-code"
   }
 
-  provisioner "file" {
-    source      = "./config.sh"
-    destination = "/home/ubuntu/config.sh"
-  }
+  # provisioner "file" {
+  #   source      = "./config.sh"
+  #   destination = "/home/ubuntu/config.sh"
+  # }
 }
 
 # Create IAM User
@@ -80,19 +80,19 @@ resource "aws_iam_group_policy_attachment" "eks_policy" {
 #  Create IAM Policy attachment 
 resource "aws_iam_role_policy_attachment" "cluster-access-policy-attachment" {
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
-  role       = aws_iam_role.cluster-access-role1.name
+  role       = aws_iam_role.cluster-access-role2.name
 }
 
 # Create IAM Role
-resource "aws_iam_role" "cluster-access-role1" {
+resource "aws_iam_role" "cluster-access-role2" {
   name               = "cluster-access-role"
   assume_role_policy = file("${path.root}/ec2-assume.json")
 }
 
 # Create IAM Instance Profile
-resource "aws_iam_instance_profile" "cluster-access-profile1" {
+resource "aws_iam_instance_profile" "cluster-access-profile2" {
   name = "cluster-access-profile1"
-  role = aws_iam_role.cluster-access-role1.name
+  role = aws_iam_role.cluster-access-role2.name
 }
 
 resource "aws_security_group" "cluster-access-sg" {
